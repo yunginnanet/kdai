@@ -75,7 +75,7 @@ static unsigned int ip_hook(void* priv, struct sk_buff* skb, const struct nf_hoo
     u8 dhcp_packet_type;
     u32 lease_time;
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0)
         struct timespec64 ts;
     #else
         struct timespec ts;
@@ -105,7 +105,7 @@ static unsigned int ip_hook(void* priv, struct sk_buff* skb, const struct nf_hoo
                     }
                     printk(KERN_INFO "kdai: DHCPACK of %pI4\n", &payload->yiaddr);
 
-                    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+                    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0)
                         ktime_get_real_ts64(&ts);
                     #else
                         getnstimeofday(&ts);

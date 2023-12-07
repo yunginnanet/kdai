@@ -85,7 +85,7 @@ int dhcp_thread_handler(void *arg) {
         list_for_each_safe(curr, next, &dhcp_snooping_list) {
             entry = list_entry(curr, struct dhcp_snooping_entry, list);
             if (ts.tv_sec >= entry->expires) {
-                #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+                #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0)
                     printk(KERN_INFO "kdai:  %pI4 released on %lld\n", &entry->ip, ts.tv_sec);
                 #else
                     printk(KERN_INFO "kdai:  %pI4 released on %ld\n", &entry->ip, ts.tv_sec);
