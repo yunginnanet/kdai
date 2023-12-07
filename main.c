@@ -1,4 +1,3 @@
-
 #include "dhcp.h"
 #include "errno.h"
 
@@ -75,7 +74,13 @@ static unsigned int ip_hook(void* priv, struct sk_buff* skb, const struct nf_hoo
     unsigned char* opt;
     u8 dhcp_packet_type;
     u32 lease_time;
-    struct timespec ts;
+
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+        struct timespec64 ts;
+    #else
+        struct timespec ts;
+    #endif
+
     struct dhcp_snooping_entry* entry;
     unsigned int status = NF_ACCEPT;
 
@@ -99,7 +104,13 @@ static unsigned int ip_hook(void* priv, struct sk_buff* skb, const struct nf_hoo
                         }
                     }
                     printk(KERN_INFO "kdai: DHCPACK of %pI4\n", &payload->yiaddr);
-                    getnstimeofday(&ts);
+
+                    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+                        ktime_get_real_ts64(&ts);
+                    #else
+                        getnstimeofday(&ts);
+                    #endif
+
                     entry = find_dhcp_snooping_entry(payload->yiaddr);
                     if (entry) {
                         memcpy(entry->mac, payload->chaddr, ETH_ALEN);
@@ -210,8 +221,12 @@ static int __init kdai_init(void) {
     arpho->hooknum = NF_ARP_IN;                 /* received packets */
     arpho->pf = NFPROTO_ARP;                    /* ARP */
     arpho->priority = NF_IP_PRI_FIRST;
-    nf_register_hook(arpho);
-    
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+    	nf_register_net_hook(&init_net, arpho);
+    #else
+    	nf_register_hook(arpho);
+    #endif
+
     /* Initialize ip netfilter hook */
     ipho = (struct nf_hook_ops *) kcalloc(1, sizeof(struct nf_hook_ops), GFP_KERNEL);
     if (unlikely(!ipho))
@@ -221,8 +236,12 @@ static int __init kdai_init(void) {
     ipho->hooknum = NF_INET_PRE_ROUTING;        /* received packets */
     ipho->pf = NFPROTO_IPV4;                    /* IP */
     ipho->priority = NF_IP_PRI_FIRST;
-    nf_register_hook(ipho);
-    
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+        nf_register_net_hook(&init_net, ipho);
+    #else
+        nf_register_hook(ipho);
+    #endif
+
     dhcp_thread = kthread_run(dhcp_thread_handler, NULL, "DHCP Thread");
     if(dhcp_thread) {
         printk(KERN_INFO"kdai: DHCP Thread Created Successfully...\n");
@@ -239,10 +258,22 @@ err:
 
 
 static void __exit kdai_exit(void) {
-    nf_unregister_hook(arpho);
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+        nf_unregister_net_hook(&init_net, arpho);
+    #else
+        nf_unregister_hook(arpho);
+    #endif
+
     kfree(arpho);
-    nf_unregister_hook(ipho);
+
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
+        nf_unregister_net_hook(&init_net, ipho);
+    #else
+        nf_unregister_hook(ipho);
+    #endif
+
     kfree(ipho);
+
     clean_dhcp_snooping_table();
     kthread_stop(dhcp_thread);
 }
